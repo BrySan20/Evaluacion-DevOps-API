@@ -28,8 +28,8 @@
         .status {
             padding: 10px;
             border-radius: 5px;
-            background-color: #a7f7ae;
-            color: #004306;
+            background-color: #44c4ff;
+            color: #16005d;
             margin-bottom: 20px;
             font-weight: bold;
         }
@@ -63,7 +63,7 @@
             .then(res => res.json())
             .then(data => {
                 const statusDiv = document.getElementById('server-status');
-                statusDiv.innerHTML = `Estado: ${data.status.toUpperCase()} <br> Versión Actual: V2 (GREEN)`;
+                statusDiv.innerHTML = `Estado: ${data.status.toUpperCase()} <br> Versión Actual: V3 (BLUE)`;
                 
             })
             .catch(err => console.error(err));
