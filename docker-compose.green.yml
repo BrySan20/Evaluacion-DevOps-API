@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  app-green:
+    image: ghcr.io/brysan20/evaluacion-devops-api:latest
+    container_name: app_green
+    ports:
+      - "127.0.0.1:5001:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000

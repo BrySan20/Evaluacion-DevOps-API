@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  app-blue:
+    image: ghcr.io/brysan20/evaluacion-devops-api:latest
+    container_name: app_blue
+    ports:
+      - "127.0.0.1:5000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
