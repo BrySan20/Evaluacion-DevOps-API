@@ -1,0 +1,129 @@
+name: CI/CD Evaluacion DevOps
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  # --- 1. JOB DE PRUEBAS ---
+  run-tests:
+    name: Ejecutar Pruebas de Integración
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm install
+      - name: Run Tests
+        run: npm test
+
+  # --- 2. JOB DE CONSTRUCCIÓN ---
+  build-and-push:
+    name: Construir Imagen Docker
+    needs: run-tests # Solo corre si los tests pasan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set lowercase image name
+        id: image_name
+        run: echo "IMAGE_NAME=$(echo ghcr.io/${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image_name.outputs.IMAGE_NAME }}:latest
+
+  # --- 3. JOB DE DESPLIEGUE BLUE-GREEN ---
+  deploy:
+    name: Desplegar Blue-Green en VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Script
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. Ir a la carpeta del proyecto y actualizar código
+            cd /home/deployer/Evaluacion-DevOps-API
+            git pull origin main
+            
+            # 2. Definir rutas y variables
+            CONFIG_PATH="/etc/nginx/blue-green"
+            ACTIVE_ENV_CONFIG=$(readlink $CONFIG_PATH/active_app.conf || echo "")
+            
+            echo "--- Configuración Actual apunta a: $ACTIVE_ENV_CONFIG ---"
+
+            # 3. Lógica de decisión Blue/Green
+            if [[ "$ACTIVE_ENV_CONFIG" == *"/app.blue.conf" ]]; then
+              echo "--- ACTIVO: BLUE (5000) -> DESPLEGANDO EN: GREEN (5001) ---"
+              TARGET_COMPOSE="docker-compose.green.yml"
+              TARGET_PROJECT="green"
+              TARGET_PORT="5001"
+              TARGET_NGINX_CONF="$CONFIG_PATH/app.green.conf"
+              OLD_COMPOSE="docker-compose.blue.yml"
+              OLD_PROJECT="blue"
+            else
+              echo "--- ACTIVO: GREEN (5001) -> DESPLEGANDO EN: BLUE (5000) ---"
+              TARGET_COMPOSE="docker-compose.blue.yml"
+              TARGET_PROJECT="blue"
+              TARGET_PORT="5000"
+              TARGET_NGINX_CONF="$CONFIG_PATH/app.blue.conf"
+              OLD_COMPOSE="docker-compose.green.yml"
+              OLD_PROJECT="green"
+            fi
+            
+            # 4. Despliegue del nuevo entorno (Aislado con -p)
+            echo "--- Bajando imagen actualizada... ---"
+            docker-compose -p $TARGET_PROJECT -f $TARGET_COMPOSE pull
+            
+            echo "--- Levantando contenedor $TARGET_PROJECT ... ---"
+            docker-compose -p $TARGET_PROJECT -f $TARGET_COMPOSE up -d --remove-orphans
+            
+            # 5. Espera y Health Check
+            echo "--- Esperando 15s para inicio... ---"
+            sleep 15
+            
+            echo "--- Verificando salud en 127.0.0.1:$TARGET_PORT/api/status ---"
+            if curl --fail http://127.0.0.1:$TARGET_PORT/api/status; then
+                echo " -> Health Check EXITOSO."
+            else
+                echo " -> Health Check FALLIDO. Abortando despliegue."
+                docker-compose -p $TARGET_PROJECT -f $TARGET_COMPOSE down
+                exit 1
+            fi
+            
+            # 6. Switch de Tráfico (Nginx)
+            echo "--- Cambiando enlace simbólico Nginx... ---"
+            sudo ln -snf $TARGET_NGINX_CONF $CONFIG_PATH/active_app.conf
+            sudo systemctl reload nginx
+            echo "--- TRÁFICO CAMBIADO EXITOSAMENTE ---"
+            
+            # 7. Limpieza del entorno viejo
+            echo "--- Apagando entorno antiguo ($OLD_PROJECT)... ---"
+            docker-compose -p $OLD_PROJECT -f $OLD_COMPOSE down --remove-orphans || true
+            
+            echo "--- DESPLIEGUE FINALIZADO ---"
