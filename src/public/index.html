@@ -28,8 +28,8 @@
         .status {
             padding: 10px;
             border-radius: 5px;
-            background-color: #e1f5fe;
-            color: #0277bd;
+            background-color: #a7f7ae;
+            color: #004306;
             margin-bottom: 20px;
             font-weight: bold;
         }
@@ -63,10 +63,8 @@
             .then(res => res.json())
             .then(data => {
                 const statusDiv = document.getElementById('server-status');
-                statusDiv.innerHTML = `Estado: ${data.status.toUpperCase()} <br> Versión Actual: V1 (BLUE)`;
+                statusDiv.innerHTML = `Estado: ${data.status.toUpperCase()} <br> Versión Actual: V2 (GREEN)`;
                 
-                // Hack visual: Si el servidor nos dijera que es Green, cambiaríamos el color
-                // (Lo haremos manual en la V2)
             })
             .catch(err => console.error(err));
 
