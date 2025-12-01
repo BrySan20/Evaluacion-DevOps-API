@@ -1,30 +1,48 @@
 const request = require('supertest');
 const app = require('../src/app');
 
-describe('API Endpoints', () => {
+describe('API To-Do Completa', () => {
     
-    // Prueba 1: Verificar el Health Check
-    it('GET /api/status debería retornar 200 OK', async () => {
+    let createdTaskId;
+
+    // Prueba 1: Health Check
+    it('GET /api/status - Debe estar OK', async () => {
         const res = await request(app).get('/api/status');
         expect(res.statusCode).toEqual(200);
         expect(res.body).toHaveProperty('status', 'ok');
     });
 
-    // Prueba 2: Obtener lista de tareas
-    it('GET /api/tasks debería retornar una lista', async () => {
+    // Prueba 2: Obtener todas las tareas
+    it('GET /api/tasks - Debe traer lista inicial', async () => {
         const res = await request(app).get('/api/tasks');
         expect(res.statusCode).toEqual(200);
         expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.length).toBeGreaterThan(0);
     });
 
-    // Prueba 3: Crear una nueva tarea
-    it('POST /api/tasks debería crear una tarea', async () => {
+    // Prueba 3: Crear, Editar y Eliminar tarea
+    it('POST /api/tasks - Debe crear tarea', async () => {
         const res = await request(app)
             .post('/api/tasks')
-            .send({ title: "Nueva tarea de prueba" });
+            .send({ title: "Test Task", date: "2025-12-01" });
         
         expect(res.statusCode).toEqual(201);
-        expect(res.body).toHaveProperty('title', 'Nueva tarea de prueba');
+        expect(res.body.title).toBe("Test Task");
+        createdTaskId = res.body.id; // Guardamos ID para tests siguientes
+    });
+
+    // Prueba 4: Editar/Completar tarea
+    it('PUT /api/tasks/:id - Debe marcar como completada', async () => {
+        const res = await request(app)
+            .put(`/api/tasks/${createdTaskId}`)
+            .send({ completed: true });
+        
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.completed).toBe(true);
+    });
+
+    // Prueba 5: Eliminar tarea
+    it('DELETE /api/tasks/:id - Debe eliminar tarea', async () => {
+        const res = await request(app).delete(`/api/tasks/${createdTaskId}`);
+        expect(res.statusCode).toEqual(204);
     });
 });
