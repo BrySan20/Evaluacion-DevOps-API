@@ -17,7 +17,7 @@ let tasks = [
 app.get('/api/status', (req, res) => {
     res.json({ 
         status: 'ok', 
-        version: 'V1 (BLUE)', // Cambiar esto manualmente en cada deploy para comprobar versión actual
+        version: 'V2 (GREEN)', // Cambiar esto manualmente en cada deploy para comprobar versión actual
         uptime: process.uptime() 
     });
 });

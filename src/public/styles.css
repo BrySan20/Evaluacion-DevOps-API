@@ -1,5 +1,5 @@
 :root {
-    --primary: #4f46e5;
+    --primary: #003906;
     --bg: #f3f4f6;
     --text: #1f2937;
     --card-bg: #ffffff;
@@ -34,7 +34,7 @@ h1 { margin: 0; font-size: 1.8rem; color: var(--primary); }
     display: inline-block;
     margin-top: 10px;
     padding: 6px 12px;
-    background: #e0e7ff;
+    background: #1dff37;
     color: var(--primary);
     border-radius: 20px;
     font-size: 0.85rem;
